@@ -500,7 +500,7 @@
                     <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm print-card space-y-6">
                         <div class="text-center border-b-2 border-slate-900 pb-4">
                             <h2 class="text-xl font-extrabold text-slate-900 uppercase tracking-wide">LAPORAN HASIL REKAPITULASI PRESENSI & NILAI SISWA</h2>
-                            <p class="text-xs text-slate-600 font-semibold">SMA / SMK DUA MEI TANGERANG - KALENDER AKADEMIK PEMERINTAH 2025/2026</p>
+                            <p class="text-xs text-slate-600 font-semibold">SMA / SMK AL HIKMA TANGERANG - KALENDER AKADEMIK PEMERINTAH 2025/2026</p>
                         </div>
 
                         <div class="flex justify-between text-xs font-semibold text-slate-700">
@@ -534,14 +534,14 @@
                             <div>
                                 <p>Mengetahui,</p>
                                 <p class="mb-16">Kepala Sekolah</p>
-                                <p class="font-bold underline">Dr. H. Sukarno, M.Pd</p>
-                                <p class="text-[10px] text-slate-500">NIP. 19780512 200312 1 001</p>
+                                <p class="font-bold underline">Nurhayanah, S.Pd</p>
+                                <p class="text-[10px] text-slate-500">NIP. 1991230920140702</p>
                             </div>
                             <div>
                                 <p>Tangerang, 26 Juli 2026</p>
-                                <p class="mb-16">Admin Kurikulum</p>
+                                <p class="mb-16">Admin Utama</p>
                                 <p class="font-bold underline">Administrator Sekolah</p>
-                                <p class="text-[10px] text-slate-500">NIP. 19850101 201001 2 003</p>
+                                <p class="text-[10px] text-slate-500">NIK. 3603132911030005</p>
                             </div>
                         </div>
                     </div>
