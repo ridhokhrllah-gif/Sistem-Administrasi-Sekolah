@@ -1042,7 +1042,7 @@
             const u = document.getElementById('loginUsername').value.trim();
 
             if (loginRoleSelected === 'admin') {
-                currentUser = { id: 'admin1', role: 'admin', name: 'Administrator Utama', detail: 'Sistem Admin', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100' };
+                currentUser = { id: 'admin1', role: 'admin', name: 'Administrator Utama', detail: 'Sistem Admin', avatar: 'logo.png' };
             } else if (loginRoleSelected === 'guru') {
                 const g = DB.guru.find(x => x.username === u) || DB.guru[0];
                 currentUser = { role: 'guru', id: g.id, name: g.name, detail: `Guru ${g.mapel}`, avatar: g.photo, mapel: g.mapel };
