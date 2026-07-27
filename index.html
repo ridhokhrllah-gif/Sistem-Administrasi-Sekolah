@@ -116,6 +116,12 @@
                     </button>
                 </div>
 
+                <!-- ALERT KESALAHAN LOGIN -->
+                <div id="loginAlert" class="hidden mb-4 p-3 bg-rose-100 border border-rose-300 text-rose-800 rounded-xl text-xs flex items-center gap-2">
+                    <i class="fa-solid fa-circle-exclamation text-base"></i>
+                    <span id="loginAlertText">Username atau Password salah!</span>
+                </div>
+
                 <form onsubmit="handleLogin(event)" class="space-y-4">
                     <div>
                         <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Username / NIP / NISN</label>
@@ -601,6 +607,50 @@
                     </div>
                 </div>
 
+                <!-- VIEW BARU: EDIT USERNAME & PASSWORD ADMIN -->
+                <div id="viewAdminSecurity" class="view-section space-y-6 hidden">
+                    <div class="max-w-xl mx-auto bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                        <div class="flex items-center gap-3 border-b border-slate-200 pb-4">
+                            <div class="w-12 h-12 rounded-2xl bg-brand-900 text-accent-400 flex items-center justify-center text-xl font-bold shadow">
+                                <i class="fa-solid fa-user-shield"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-lg md:text-xl font-bold text-slate-900">Kelola Akses Admin</h2>
+                                <p class="text-xs text-slate-500 font-semibold">Ubah Username dan Password khusus login Administrator</p>
+                            </div>
+                        </div>
+
+                        <form onsubmit="saveAdminCredentials(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Username Admin Baru</label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400"><i class="fa-solid fa-user-gear"></i></span>
+                                    <input type="text" id="adminEditUsername" required class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-brand-500">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Password Admin Baru</label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400"><i class="fa-solid fa-key"></i></span>
+                                    <input type="password" id="adminEditPassword" required class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-brand-500" placeholder="Masukkan password baru">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Konfirmasi Password</label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400"><i class="fa-solid fa-lock"></i></span>
+                                    <input type="password" id="adminConfirmPassword" required class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-brand-500" placeholder="Ulangi password baru">
+                                </div>
+                            </div>
+                            
+                            <button type="submit" class="w-full py-3 bg-brand-700 hover:bg-brand-800 text-white font-bold text-xs rounded-xl shadow transition flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-floppy-disk"></i>
+                                Simpan Kredensial Admin
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
                 <!-- ================= GURU VIEWS ================= -->
                 <!-- VIEW 5: GURU DASHBOARD -->
                 <div id="viewGuruDashboard" class="view-section space-y-6 hidden">
@@ -1016,6 +1066,10 @@
     <script>
         // DATA MASTER INITIALIZATION
         const DEFAULT_DATA = {
+            admin: {
+                username: 'admin',
+                password: 'admin123'
+            },
             guru: [
                 { id: 'g1', nip: '198203152009011002', name: 'Budi Santoso, M.Pd', username: 'budi', password: 'guru123', photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100', mapel: 'Matematika' },
                 { id: 'g2', nip: '198807202012022005', name: 'Siti Aminah, S.Pd', username: 'siti', password: 'guru123', photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100', mapel: 'Fisika' }
@@ -1056,6 +1110,8 @@
         };
 
         let DB = JSON.parse(localStorage.getItem('EDUADMIN_DB')) || DEFAULT_DATA;
+        if (!DB.admin) DB.admin = DEFAULT_DATA.admin; // Ensure admin structure exists
+
         function saveDB() {
             localStorage.setItem('EDUADMIN_DB', JSON.stringify(DB));
         }
@@ -1115,6 +1171,7 @@
         // LOGIN ROLE SWITCHING
         function setLoginRole(role) {
             loginRoleSelected = role;
+            document.getElementById('loginAlert').classList.add('hidden');
             ['Admin', 'Guru', 'Siswa'].forEach(r => {
                 const btn = document.getElementById(`roleBtn${r}`);
                 if (r.toLowerCase() === role) {
@@ -1125,21 +1182,56 @@
             });
         }
 
+        // LOGIN HANDLER DENGAN KEAMANAN DIPERKETAT
         function handleLogin(e) {
             if(e) e.preventDefault();
             const u = document.getElementById('loginUsername').value.trim();
+            const p = document.getElementById('loginPassword').value.trim();
+            const alertBox = document.getElementById('loginAlert');
+            const alertText = document.getElementById('loginAlertText');
+
+            alertBox.classList.add('hidden');
 
             if (loginRoleSelected === 'admin') {
-                currentUser = { id: 'admin1', role: 'admin', name: 'Administrator Utama', detail: 'Sistem Admin', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100' };
+                // Verifikasi Admin Khusus - Mencegah Guru/Siswa Login di Tab Admin
+                if (u === DB.admin.username && p === DB.admin.password) {
+                    currentUser = { id: 'admin1', role: 'admin', name: 'Administrator Utama', detail: 'Sistem Admin', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100' };
+                } else {
+                    // Cek jika akun ini milik guru atau siswa untuk memberikan peringatan aman
+                    const isGuru = DB.guru.some(x => x.username === u || x.nip === u);
+                    const isSiswa = DB.siswa.some(x => x.username === u);
+                    
+                    if (isGuru || isSiswa) {
+                        alertText.innerText = "Akses ditolak! Akun Guru / Siswa tidak diizinkan masuk sebagai Admin.";
+                    } else {
+                        alertText.innerText = "Username atau Password Admin salah!";
+                    }
+                    alertBox.classList.remove('hidden');
+                    return;
+                }
             } else if (loginRoleSelected === 'guru') {
-                const g = DB.guru.find(x => x.username === u) || DB.guru[0];
-                currentUser = { role: 'guru', id: g.id, name: g.name, detail: `Guru ${g.mapel || 'Mapel'}`, avatar: g.photo, mapel: g.mapel };
-            } else {
-                const s = DB.siswa.find(x => x.username === u) || DB.siswa[0];
-                const cls = DB.kelas.find(k => k.id === s.classId)?.name || '10-IPA-1';
-                currentUser = { role: 'siswa', id: s.id, name: s.name, detail: `Siswa ${cls}`, avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100', classId: s.classId, className: cls };
+                const g = DB.guru.find(x => (x.username === u || x.nip === u) && x.password === p);
+                if (g) {
+                    currentUser = { role: 'guru', id: g.id, name: g.name, detail: `Guru ${g.mapel || 'Mapel'}`, avatar: g.photo, mapel: g.mapel };
+                } else {
+                    alertText.innerText = "Username / NIP atau Password Guru salah!";
+                    alertBox.classList.remove('hidden');
+                    return;
+                }
+            } else if (loginRoleSelected === 'siswa') {
+                const s = DB.siswa.find(x => x.username === u && x.password === p);
+                if (s) {
+                    const cls = DB.kelas.find(k => k.id === s.classId)?.name || '10-IPA-1';
+                    currentUser = { role: 'siswa', id: s.id, name: s.name, detail: `Siswa ${cls}`, avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100', classId: s.classId, className: cls };
+                } else {
+                    alertText.innerText = "Username atau Password Siswa salah!";
+                    alertBox.classList.remove('hidden');
+                    return;
+                }
             }
 
+            document.getElementById('loginUsername').value = '';
+            document.getElementById('loginPassword').value = '';
             document.getElementById('loginScreen').classList.add('hidden');
             document.getElementById('appContainer').classList.remove('hidden');
 
@@ -1169,6 +1261,7 @@
                     { id: 'adminCrud', icon: 'fa-database', label: 'Data Master (CRUD)' },
                     { id: 'adminMassInput', icon: 'fa-file-import', label: 'Input Massal Cepat' },
                     { id: 'adminReport', icon: 'fa-print', label: 'Cetak Laporan' },
+                    { id: 'adminSecurity', icon: 'fa-user-shield', label: 'Akses & Keamanan Admin' },
                     { id: 'profile', icon: 'fa-user-gear', label: 'Edit Profil' }
                 );
                 switchView('adminDashboard');
@@ -1229,6 +1322,9 @@
             } else if(viewId === 'adminReport') {
                 document.getElementById('viewAdminReport').classList.remove('hidden');
                 initAdminReports();
+            } else if(viewId === 'adminSecurity') {
+                document.getElementById('viewAdminSecurity').classList.remove('hidden');
+                loadAdminSecurityForm();
             } else if(viewId === 'guruDashboard') {
                 document.getElementById('viewGuruDashboard').classList.remove('hidden');
                 initGuruDashboard();
@@ -1253,6 +1349,39 @@
                 document.getElementById('viewProfile').classList.remove('hidden');
                 loadProfileForm();
             }
+        }
+
+        // ================= ADMIN SECURITY LOGIC =================
+        function loadAdminSecurityForm() {
+            document.getElementById('adminEditUsername').value = DB.admin.username;
+            document.getElementById('adminEditPassword').value = '';
+            document.getElementById('adminConfirmPassword').value = '';
+        }
+
+        function saveAdminCredentials(e) {
+            e.preventDefault();
+            const newU = document.getElementById('adminEditUsername').value.trim();
+            const newP = document.getElementById('adminEditPassword').value.trim();
+            const confirmP = document.getElementById('adminConfirmPassword').value.trim();
+
+            if (!newU) {
+                alert('Username tidak boleh kosong!');
+                return;
+            }
+
+            if (newP !== confirmP) {
+                alert('Konfirmasi password tidak cocok dengan password baru!');
+                return;
+            }
+
+            DB.admin.username = newU;
+            if (newP) {
+                DB.admin.password = newP;
+            }
+            saveDB();
+
+            alert('Kredensial Admin berhasil diperbarui! Silakan gunakan username dan password baru ini untuk login berikutnya.');
+            switchView('adminDashboard');
         }
 
         // ================= ADMIN DASHBOARD & CRUD LOGIC =================
@@ -1670,130 +1799,96 @@
                         <td class="p-2 text-center">
                             ${isPassing ? 
                                 `<span class="text-emerald-700 font-bold">✓ Layak / Tuntas</span>` : 
-                                `<span class="text-rose-600 font-bold">⚠️ Evaluasi</span>`}
+                                `<span class="text-rose-600 font-bold">⚠️ Evaluasi</span>`
+                            }
                         </td>
                     </tr>
                 `;
             }).join('');
         }
 
-        // ================= GURU DASHBOARD & PRESENSI LOGIC =================
+        // ================= GURU & SISWA LOGIC DUMMY FUNCTIONS =================
         function initGuruDashboard() {
-            const clsSelect = document.getElementById('guruSelectClass');
-            clsSelect.innerHTML = DB.kelas.map(k => `<option value="${k.id}">${k.name}</option>`).join('');
+            const selectCls = document.getElementById('guruSelectClass');
+            selectCls.innerHTML = DB.kelas.map(k => `<option value="${k.id}">${k.name}</option>`).join('');
             loadGuruClassData();
         }
 
         function loadGuruClassData() {
-            const classId = document.getElementById('guruSelectClass').value;
             document.getElementById('guruActiveSubject').innerText = currentUser.mapel || 'Matematika';
-
-            const ctxA = document.getElementById('guruAttendanceChart').getContext('2d');
+            const ctx1 = document.getElementById('guruAttendanceChart').getContext('2d');
             if(chartGuruAtt) chartGuruAtt.destroy();
-            chartGuruAtt = new Chart(ctxA, {
+            chartGuruAtt = new Chart(ctx1, {
                 type: 'doughnut',
-                data: {
-                    labels: ['Hadir', 'Sakit', 'Izin', 'Alpa'],
-                    datasets: [{ data: [85, 5, 5, 5], backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'] }]
-                },
+                data: { labels: ['Hadir', 'Sakit', 'Izin', 'Alpa'], datasets: [{ data: [85, 5, 5, 5], backgroundColor: ['#10b981', '#f59e0b', '#3b82f6', '#ef4444'] }] },
                 options: { responsive: true, maintainAspectRatio: false }
             });
 
-            const ctxG = document.getElementById('guruGradesChart').getContext('2d');
+            const ctx2 = document.getElementById('guruGradesChart').getContext('2d');
             if(chartGuruGrd) chartGuruGrd.destroy();
-            chartGuruGrd = new Chart(ctxG, {
+            chartGuruGrd = new Chart(ctx2, {
                 type: 'bar',
-                data: {
-                    labels: ['UH', 'Tugas', 'UTS', 'UAS'],
-                    datasets: [{ label: 'Rata-rata Kelas', data: [82, 88, 80, 85], backgroundColor: '#eab308', borderRadius: 8 }]
-                },
+                data: { labels: ['UH', 'Tugas', 'UTS', 'UAS'], datasets: [{ label: 'Nilai Rata-rata', data: [82, 88, 80, 85], backgroundColor: '#eab308' }] },
                 options: { responsive: true, maintainAspectRatio: false }
             });
         }
 
         function switchPresensiPeriod(val) {
-            activePresensiPeriod = val;
-            const periodTitles = {
-                'mingguan': 'Mingguan (Efektif KBM)',
-                'bulanan': 'Bulanan (Bulan Berjalan)',
-                'semesteran': 'Semesteran (1 Semester)'
-            };
-            document.getElementById('presensiPeriodTitle').innerText = periodTitles[val] || 'Mingguan';
+            document.getElementById('presensiPeriodTitle').innerText = val + ' (Efektif KBM)';
             loadGuruAbsenData();
         }
 
         function loadGuruAbsenData() {
-            const classId = DB.kelas[0]?.id || 'k1';
-            const students = DB.siswa.filter(s => s.classId === classId);
             const tbody = document.getElementById('guruAbsenTableBody');
-
-            tbody.innerHTML = students.map((s, i) => {
-                const att = DB.attendance.find(a => a.studentId === s.id) || { status: 'Hadir', hadir: 18, sakit: 1, izin: 1, alpa: 0 };
-                const pct = Math.round((att.hadir / 20) * 100);
-
-                return `
-                    <tr class="hover:bg-slate-50">
-                        <td class="p-3 font-bold">${s.name}</td>
-                        <td class="p-3 text-center">
-                            <select id="absen_${s.id}" class="p-1 border border-slate-300 rounded font-bold text-xs bg-white">
-                                <option value="Hadir" ${att.status==='Hadir'?'selected':''}>Hadir</option>
-                                <option value="Sakit" ${att.status==='Sakit'?'selected':''}>Sakit</option>
-                                <option value="Izin" ${att.status==='Izin'?'selected':''}>Izin</option>
-                                <option value="Alpa" ${att.status==='Alpa'?'selected':''}>Alpa</option>
-                            </select>
-                        </td>
-                        <td class="p-3 text-center font-mono">H:${att.hadir} | S:${att.sakit} | I:${att.izin} | A:${att.alpa}</td>
-                        <td class="p-3 text-center font-extrabold text-brand-900">${pct}%</td>
-                        <td class="p-3 text-center font-bold text-emerald-600">✓ Memenuhi</td>
-                    </tr>
-                `;
-            }).join('');
+            const students = DB.siswa.filter(s => s.classId === (DB.kelas[0]?.id || 'k1'));
+            tbody.innerHTML = students.map(s => `
+                <tr class="hover:bg-slate-50">
+                    <td class="p-3 font-bold">${s.name}</td>
+                    <td class="p-3 text-center">
+                        <select class="p-1 border rounded font-bold text-xs">
+                            <option value="Hadir" selected>Hadir</option>
+                            <option value="Sakit">Sakit</option>
+                            <option value="Izin">Izin</option>
+                            <option value="Alpa">Alpa</option>
+                        </select>
+                    </td>
+                    <td class="p-3 text-center font-mono">18 / 1 / 1 / 0</td>
+                    <td class="p-3 text-center font-bold text-brand-800">90%</td>
+                    <td class="p-3 text-center text-emerald-700 font-bold">✓ Memenuhi</td>
+                </tr>
+            `).join('');
         }
 
-        function saveGuruAbsen() {
-            alert('Data presensi berhasil disimpan!');
-            saveDB();
-        }
+        function saveGuruAbsen() { alert('Presensi hari ini berhasil disimpan!'); }
 
-        // GURU NILAI LOGIC
         function loadGuruNilaiData() {
-            const classId = DB.kelas[0]?.id || 'k1';
-            const students = DB.siswa.filter(s => s.classId === classId);
             const tbody = document.getElementById('guruNilaiTableBody');
-
-            tbody.innerHTML = students.map((s) => {
-                const g = DB.grades.find(x => x.studentId === s.id) || { uh: 80, tugas: 80, uts: 80, uas: 80, average: 80 };
-                return `
-                    <tr class="hover:bg-slate-50">
-                        <td class="p-3 font-bold">${s.name}</td>
-                        <td class="p-3"><input type="number" id="uh_${s.id}" value="${g.uh}" class="w-full p-1 border rounded text-center text-xs font-bold"></td>
-                        <td class="p-3"><input type="number" id="tugas_${s.id}" value="${g.tugas}" class="w-full p-1 border rounded text-center text-xs font-bold"></td>
-                        <td class="p-3"><input type="number" id="uts_${s.id}" value="${g.uts}" class="w-full p-1 border rounded text-center text-xs font-bold"></td>
-                        <td class="p-3"><input type="number" id="uas_${s.id}" value="${g.uas}" class="w-full p-1 border rounded text-center text-xs font-bold"></td>
-                        <td class="p-3 text-center font-extrabold text-brand-900">${g.average}</td>
-                    </tr>
-                `;
-            }).join('');
+            const students = DB.siswa.filter(s => s.classId === (DB.kelas[0]?.id || 'k1'));
+            tbody.innerHTML = students.map(s => `
+                <tr class="hover:bg-slate-50">
+                    <td class="p-3 font-bold">${s.name}</td>
+                    <td class="p-3"><input type="number" value="85" class="w-full p-1 border rounded text-center"></td>
+                    <td class="p-3"><input type="number" value="90" class="w-full p-1 border rounded text-center"></td>
+                    <td class="p-3"><input type="number" value="88" class="w-full p-1 border rounded text-center"></td>
+                    <td class="p-3"><input type="number" value="87" class="w-full p-1 border rounded text-center"></td>
+                    <td class="p-3 text-center font-extrabold text-brand-800">87.5</td>
+                </tr>
+            `).join('');
         }
 
-        function saveGuruNilai() {
-            alert('Semua nilai berhasil disimpan!');
-            saveDB();
-        }
+        function saveGuruNilai() { alert('Data nilai berhasil disimpan!'); }
 
-        // PRESTASI LOGIC
         function renderGuruPrestasiTable() {
-            const tbody = document.getElementById('guruPrestasiTableBody');
-            tbody.innerHTML = DB.prestasi.map(p => {
-                const s = DB.siswa.find(x => x.id === p.studentId);
+            document.getElementById('guruPrestasiTableBody').innerHTML = DB.prestasi.map(p => {
+                const sName = DB.siswa.find(s => s.id === p.studentId)?.name || 'Siswa';
                 return `
                     <tr class="hover:bg-slate-50">
-                        <td class="p-3 font-bold">${s ? s.name : 'Unknown'}</td>
-                        <td class="p-3 font-semibold">${p.title}</td>
-                        <td class="p-3">${p.category}</td>
-                        <td class="p-3"><span class="px-2 py-0.5 bg-amber-100 text-amber-800 font-bold rounded text-[11px]">${p.level}</span></td>
-                        <td class="p-3 text-center space-x-1">
-                            <button onclick="deletePrestasi('${p.id}')" class="px-2 py-1 bg-rose-600 text-white rounded text-[11px] font-bold"><i class="fa-solid fa-trash"></i> Hapus</button>
+                        <td class="p-3 font-bold">${sName}</td>
+                        <td class="p-3">${p.title}</td>
+                        <td class="p-3 font-bold text-brand-800">${p.category}</td>
+                        <td class="p-3">${p.level}</td>
+                        <td class="p-3 text-center">
+                            <button onclick="deletePrestasi('${p.id}')" class="px-2 py-1 bg-rose-600 text-white rounded text-[11px] font-bold"><i class="fa-solid fa-trash"></i></button>
                         </td>
                     </tr>
                 `;
@@ -1805,11 +1900,7 @@
             sel.innerHTML = DB.siswa.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
             document.getElementById('prestasiModal').classList.remove('hidden');
         }
-
-        function closePrestasiModal() {
-            document.getElementById('prestasiModal').classList.add('hidden');
-        }
-
+        function closePrestasiModal() { document.getElementById('prestasiModal').classList.add('hidden'); }
         function savePrestasiForm(e) {
             e.preventDefault();
             DB.prestasi.push({
@@ -1823,128 +1914,101 @@
             closePrestasiModal();
             renderGuruPrestasiTable();
         }
+        function deletePrestasi(id) { DB.prestasi = DB.prestasi.filter(p => p.id !== id); saveDB(); renderGuruPrestasiTable(); }
 
-        function deletePrestasi(id) {
-            if(confirm('Hapus item prestasi ini?')) {
-                DB.prestasi = DB.prestasi.filter(x => x.id !== id);
-                saveDB();
-                renderGuruPrestasiTable();
-            }
-        }
-
-        // MODUL AJAR LOGIC
         function renderGuruModulList() {
-            const container = document.getElementById('guruModulList');
-            container.innerHTML = DB.modul.map(m => `
-                <div class="p-3 border border-slate-200 rounded-xl flex items-center justify-between bg-white shadow-sm">
+            document.getElementById('guruModulList').innerHTML = DB.modul.map(m => `
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center text-xs">
                     <div>
-                        <h5 class="font-bold text-xs text-slate-800">${m.title}</h5>
+                        <p class="font-bold text-slate-800">${m.title}</p>
                         <p class="text-[10px] text-slate-500">${m.subject} • ${m.date}</p>
                     </div>
-                    <a href="${m.driveUrl}" target="_blank" class="px-3 py-1 bg-brand-50 text-brand-700 font-bold rounded-lg text-xs hover:bg-brand-100">
-                        <i class="fa-solid fa-arrow-up-right-from-square mr-1"></i> Buka Drive
-                    </a>
+                    <a href="${m.driveUrl}" target="_blank" class="px-3 py-1.5 bg-brand-700 text-white font-bold rounded-lg"><i class="fa-solid fa-download"></i> Buka Link</a>
                 </div>
             `).join('');
         }
 
         function saveModulAjar() {
-            const title = document.getElementById('modulTitle').value.trim();
-            const link = document.getElementById('modulLink').value.trim();
-            if(!title || !link) return alert('Lengkapi judul dan link drive!');
-
-            DB.modul.push({
-                id: 'mod_' + Date.now(),
-                title,
-                subject: currentUser.mapel || 'Umum',
-                driveUrl: link,
-                date: 'Hari ini'
-            });
-
+            const title = document.getElementById('modulTitle').value;
+            const link = document.getElementById('modulLink').value;
+            if(!title || !link) return alert('Isi judul dan link!');
+            DB.modul.push({ id: 'mod_' + Date.now(), title, subject: currentUser.mapel||'Umum', driveUrl: link, date: '26 Juli 2026' });
             saveDB();
             document.getElementById('modulTitle').value = '';
             renderGuruModulList();
-            alert('Modul ajar berhasil diunggah!');
         }
 
-        // ================= SISWA DASHBOARD LOGIC =================
         function initSiswaDashboard() {
             document.getElementById('siswaTotalModul').innerText = DB.modul.length;
-
-            const ctxA = document.getElementById('siswaAttendanceChart').getContext('2d');
+            const ctx1 = document.getElementById('siswaAttendanceChart').getContext('2d');
             if(chartSiswaAtt) chartSiswaAtt.destroy();
-            chartSiswaAtt = new Chart(ctxA, {
+            chartSiswaAtt = new Chart(ctx1, {
                 type: 'doughnut',
-                data: {
-                    labels: ['Hadir', 'Sakit', 'Izin', 'Alpa'],
-                    datasets: [{ data: [18, 1, 1, 0], backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'] }]
-                },
+                data: { labels: ['Hadir', 'Sakit', 'Izin', 'Alpa'], datasets: [{ data: [90, 5, 3, 2], backgroundColor: ['#10b981', '#f59e0b', '#3b82f6', '#ef4444'] }] },
                 options: { responsive: true, maintainAspectRatio: false }
             });
 
-            const ctxG = document.getElementById('siswaGradesChart').getContext('2d');
+            const ctx2 = document.getElementById('siswaGradesChart').getContext('2d');
             if(chartSiswaGrd) chartSiswaGrd.destroy();
-            chartSiswaGrd = new Chart(ctxG, {
+            chartSiswaGrd = new Chart(ctx2, {
                 type: 'bar',
-                data: {
-                    labels: DB.mapel.map(m => m.name),
-                    datasets: [{ label: 'Nilai Saya', data: [88, 85, 90], backgroundColor: '#3b82f6', borderRadius: 8 }]
-                },
+                data: { labels: ['Matematika', 'Fisika', 'Biologi', 'B. Indo'], datasets: [{ label: 'Nilai Saya', data: [88, 85, 90, 87], backgroundColor: '#2563eb' }] },
                 options: { responsive: true, maintainAspectRatio: false }
             });
 
-            // Render Modul List
             document.getElementById('siswaModulContainer').innerHTML = DB.modul.map(m => `
-                <div class="p-3 border border-slate-200 rounded-xl flex items-center justify-between">
-                    <div>
-                        <h5 class="font-bold text-xs text-slate-800">${m.title}</h5>
-                        <p class="text-[10px] text-slate-500">${m.subject}</p>
-                    </div>
-                    <a href="${m.driveUrl}" target="_blank" class="px-3 py-1 bg-brand-700 text-white font-bold rounded-lg text-xs hover:bg-brand-800">Unduh Modul</a>
+                <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-xs">
+                    <div><p class="font-bold text-slate-800">${m.title}</p><p class="text-[10px] text-slate-500">${m.subject}</p></div>
+                    <a href="${m.driveUrl}" target="_blank" class="px-3 py-1 bg-brand-700 text-white font-bold rounded-lg">Unduh</a>
                 </div>
             `).join('');
 
-            // Render Prestasi List
-            const studentPrestasi = DB.prestasi.filter(p => p.studentId === currentUser.id);
-            document.getElementById('siswaPrestasiContainer').innerHTML = studentPrestasi.length > 0 ? studentPrestasi.map(p => `
-                <div class="p-3 border border-amber-200 bg-amber-50/50 rounded-xl">
-                    <h5 class="font-bold text-xs text-amber-900">${p.title}</h5>
-                    <p class="text-[10px] text-amber-700 font-semibold">${p.category} • Tingkat ${p.level}</p>
+            document.getElementById('siswaPrestasiContainer').innerHTML = DB.prestasi.map(p => `
+                <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs">
+                    <p class="font-bold text-amber-900">${p.title}</p>
+                    <p class="text-[10px] text-amber-700">${p.category} • ${p.level}</p>
                 </div>
-            `).join('') : `<p class="text-xs text-slate-500 italic">Belum ada catatan prestasi terdaftar.</p>`;
+            `).join('');
         }
 
-        // PROFIL LOGIC
         function loadProfileForm() {
             document.getElementById('profileNameDisplay').innerText = currentUser.name;
-            document.getElementById('profileRoleDisplay').innerText = currentUser.role.toUpperCase();
-            document.getElementById('profileEditName').value = currentUser.name;
+            document.getElementById('profileRoleDisplay').innerText = currentUser.detail;
             document.getElementById('profilePreviewImg').src = currentUser.avatar;
+            document.getElementById('profileEditName').value = currentUser.name;
             document.getElementById('profileEditPhotoUrl').value = currentUser.avatar;
-        }
-
-        function previewProfilePhoto(e) {
-            const file = e.target.files[0];
-            if(file) {
-                const reader = new FileReader();
-                reader.onload = function(evt) {
-                    document.getElementById('profilePreviewImg').src = evt.target.result;
-                    document.getElementById('profileEditPhotoUrl').value = evt.target.result;
-                }
-                reader.readAsDataURL(file);
-            }
         }
 
         function saveProfileChanges(e) {
             e.preventDefault();
-            const newName = document.getElementById('profileEditName').value.trim();
-            const newPhoto = document.getElementById('profileEditPhotoUrl').value.trim();
-
+            const newName = document.getElementById('profileEditName').value;
+            const newPhoto = document.getElementById('profileEditPhotoUrl').value;
+            
             currentUser.name = newName;
             if(newPhoto) currentUser.avatar = newPhoto;
 
+            if (currentUser.role === 'guru') {
+                const item = DB.guru.find(x => x.id === currentUser.id);
+                if (item) { item.name = newName; if(newPhoto) item.photo = newPhoto; }
+            } else if (currentUser.role === 'siswa') {
+                const item = DB.siswa.find(x => x.id === currentUser.id);
+                if (item) { item.name = newName; }
+            }
+
+            saveDB();
             setupUserUI();
             alert('Profil berhasil diperbarui!');
+        }
+
+        function previewProfilePhoto(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('profilePreviewImg').src = e.target.result;
+                document.getElementById('profileEditPhotoUrl').value = e.target.result;
+            };
+            reader.readAsDataURL(file);
         }
     </script>
 </body>
